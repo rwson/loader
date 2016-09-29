@@ -16,7 +16,7 @@ factory | 该模块的工厂函数 | Function | null | 是
 
 
     //  主模块
-    loader.require(dep?, factory);
+    loader.require(deps, factory);
 
 参数名 | 意义 | 类型 | 默认值 | 是否必传
 ---|---|---|---|---
