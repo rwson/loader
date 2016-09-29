@@ -7,18 +7,20 @@
 "use strict";
 
 loader.config({
-    base:"modules/",
+    base: "modules/",
     paths: {
         module1: "module1.js",
         module2: "module2.js",
-        module3: "module3.js"
+        module3: "module3.js",
+        "Class": "Class.js"
     },
     urlArg: "v=" + new Date().getTime()
 });
 
 loader.require(["module1", "module2", "module3"], function (module1, module2, module3) {
-    console.log(module1.method());
-    console.log(module2.method());
-    console.log(module3.method());
+    // console.log(module1.method());
+    // console.log(module2.method());
+    // console.log(module3.method());
+    console.log([].slice.call(arguments));
 });
 

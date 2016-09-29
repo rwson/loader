@@ -6,13 +6,15 @@
 
 "use strict";
 
-(function (root, undefined) {
+(function(root, undefined) {
 
-    var loader = (function () {
+    var loader = (function() {
 
         //  cache some objects
         var doc = document,
             head = doc.head || doc.getElementsByTagName("head")[0],
+            loadings = [],
+            loaded = [],
             modules = {},
             interactiveScript = null,
             continueLoad = true;
@@ -35,7 +37,7 @@
              *      @attribute  shim    Object
              *      @attribute  urlArg  String
              */
-            config: function (cfg) {
+            config: function(cfg) {
                 if (_typeOf(cfg) === "Object") {
                     configs = _merge(configs, cfg);
                 }
@@ -47,7 +49,7 @@
              * @param deps      module dependence
              * @param factory   constructor function
              */
-            define: function (id, deps, factory) {
+            define: function(id, deps, factory) {
                 var _argus = _toArray(arguments),
                     _len = _argus.length;
 
@@ -72,7 +74,8 @@
                 modules[id] = {
                     id: id,
                     deps: deps,
-                    factory: factory
+                    factory: factory,
+                    result: null
                 };
             },
 
@@ -81,10 +84,10 @@
              * @param deps      module dependence
              * @param factory   constructor function
              */
-            require: function (deps, factory) {
+            require: function(deps, factory) {
                 var _argus = _toArray(arguments),
                     _len = _argus.length,
-                    _depLen, _argsCalled;
+                    _depLen, _id;
 
                 //  arguments check
                 if (_len === 0) {
@@ -101,31 +104,100 @@
                 //  get dependence modules length
                 _depLen = deps.length;
 
+                _id = _extractId(_getCurrentScript());
+                if (!modules[_id]) {
+                    modules[_id] = {
+                        id: _id,
+                        deps: deps,
+                        factory: factory,
+                        main: true,
+                        result: null
+                    };
+                }
                 if (_depLen === 0) {
                     factory();
                 } else {
-                    _argsCalled = [];
-                    deps.forEach(function (dep, index) {
-                        _loadScript(_buildPath(configs.paths[dep]), function () {
-                            _argsCalled.push(_executeModule(dep));
-                            if (index === _depLen - 1) {
-                                factory.apply(root, _argsCalled);
-                            }
+                    loadings = [].concat(deps);
+                    _loadModuleDep(_id, function() {
+                        _buildDependence(_id);
+                        deps = deps.map(function(dep) {
+                            return modules[dep].result;
                         });
+                        modules[_id].result = factory.apply(root, deps);
                     });
                 }
             }
         };
 
         /**
-         * execute module
-         * @param id    module id/name
+         * load module dependence
+         * @param id        module id
+         * @param callback  all loaded callback
+         * @private
+         */
+        function _loadModuleDep(id, callback) {
+            var _curModule, _loadLen, _allLoaded;
+            loadings.forEach(function(dep) {
+                if (!modules[dep]) {
+                    _loadScript(dep, function() {
+                        if (loaded.indexOf(dep) === -1) {
+                            loaded.push(dep);
+                        }
+                        _loadLen = 0;
+                        loadings.shift();
+                        _curModule = modules[dep];
+                        if (_curModule && _curModule.deps) {
+                            _loadLen = _curModule.deps.length;
+                        }
+                        if (_loadLen) {
+                            loadings = loadings.concat(_curModule.deps);
+                            _loadModuleDep(dep, callback);
+                        }
+                        if (!loadings.length) {
+                            if (_typeOf(callback) === "Function") {
+                                _allLoaded = loaded.every(function(id) {
+                                    return modules[id];
+                                });
+                                if(_allLoaded) {
+                                    callback();
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        /**
+         * loop build dependence
+         * @param id    module id
          * @returns {*}
          * @private
          */
-        function _executeModule(id) {
-            var _curModule = modules[id];
-            return _curModule.factory.apply(_curModule.deps);
+        function _buildDependence(id) {
+            var _curModule = modules[id],
+                _deps = _curModule.deps || [],
+                _depsCalled = [],
+                res;
+            if (!!(_typeOf(_curModule.result) === "Null" && _deps.length)) {
+                _deps.forEach(function(dep) {
+                    if (modules[dep] && !modules[dep].main) {
+                        if (modules[dep].deps.length) {
+                            _depsCalled = modules[dep].deps;
+                            _depsCalled = _depsCalled.map(function(depId) {
+                                if (modules[depId] && !modules[depId].deps.length) {
+                                    modules[depId].result = modules[depId].factory();
+                                } else {
+                                    _buildDependence(depId);
+                                }
+                                return modules[depId].result;
+                            });
+
+                        }
+                        modules[dep].result = modules[dep].factory.apply(root, _depsCalled);
+                    }
+                });
+            }
         }
 
         /**
@@ -154,14 +226,7 @@
             if (doc.currentScript) {
                 return doc.currentScript.src;
             }
-            if (currentlyAddingScript) {
-                return currentlyAddingScript.src;
-            }
-            // For IE6-9 browsers, the script onload event may not fire right
-            // after the script is evaluated. Kris Zyp found that it
-            // could query the script nodes and the one that is in "interactive"
-            // mode indicates the current script
-            // ref: http://goo.gl/JHfFW
+
             if (interactiveScript && interactiveScript.readyState === "interactive") {
                 return interactiveScript.src;
             }
@@ -184,7 +249,8 @@
          * @private
          */
         function _buildPath(src) {
-            var path = src, _splitor;
+            var path = src,
+                _splitor;
             if (path.indexOf("./") === 0 || path.indexOf("/") === 0) {
                 path = configs.base + path.replace(/^\//, "").replace(/^\.\//, "");
             } else if ((/^http[s]?:/i).test(path)) {
@@ -206,32 +272,45 @@
 
         /**
          * load script
-         * @param src       src
+         * @param id        module id
          * @param success   success callback
          * @private
          */
-        function _loadScript(src, success) {
+        function _loadScript(id, success) {
+            if (doc.querySelector("[data-module='" + id + "']")) {
+                success();
+                return;
+            }
+            if(!configs.paths[id]) {
+                throw new Error("load module " + id + " error!");
+            }
             var _script = doc.createElement("script");
-            _script.src = src;
+            var _src = _buildPath(configs.paths[id]);
+            _script.src = _src;
             _script.type = "text/javascript";
+            _script.dataset.module = id;
             _script.async = true;
             if ("onload" in _script) {
-                _script.onload = function () {
+                _script.onload = function() {
                     continueLoad = true;
-                    success();
+                    if (_typeOf(success) === "Function") {
+                        success();
+                    }
                 };
-                _script.onerror = function () {
+                _script.onerror = function() {
                     continueLoad = false;
-                    throw new Error("module " + src + " not found!");
+                    throw new Error("load module " + id + " error!");
                 };
             } else {
-                _script.onreadystatechange = function () {
+                _script.onreadystatechange = function() {
                     if (!this.readyState || this.readyState === "loaded" || this.readyState === "complete") {
                         continueLoad = true;
-                        success();
+                        if (_typeOf(success) === "Function") {
+                            success();
+                        }
                     } else {
                         continueLoad = false;
-                        throw new Error("module " + src + " not found!");
+                        throw new Error("load module " + id + " error!");
                     }
                 }
             }

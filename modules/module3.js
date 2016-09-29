@@ -6,8 +6,9 @@
 
 "use strict";
 
-loader.define([], function () {
+loader.define(["Class"], function (Class) {
     return {
+        Class: Class,
         method: function () {
             return "method on module3";
         }
