@@ -7,20 +7,20 @@
 "use strict";
 
 loader.config({
-    base: "modules/",
+    base: "module/",
     paths: {
-        module1: "module1.js",
-        module2: "module2.js",
-        module3: "module3.js",
-        "Class": "Class.js"
+    	dom: "dom",
+    	event: "event"
     },
     urlArg: "v=" + new Date().getTime()
 });
 
-loader.require(["module1", "module2", "module3"], function (module1, module2, module3) {
-    // console.log(module1.method());
-    // console.log(module2.method());
-    // console.log(module3.method());
-    console.log([].slice.call(arguments));
-});
 
+loader.define(["module/dom","module/event"], function (dom, event) {
+
+    event.on("demo", "click", function () {
+    	console.log(111);
+        dom.html("demo", dom.html("demo") + "<br/>success!");
+    });
+
+});
