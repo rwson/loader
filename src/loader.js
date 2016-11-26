@@ -13,63 +13,13 @@
         //  缓存已经加载好的模块
         var moduleCache = {},
 
-            //  缓存document对象
+            //  缓存document
             doc = document,
 
             //  缓存head标签
-            head = doc.getElementsByTagName("head")[0],
-
-            //  配置对象
-            configs = {
-                
-                base: "/",
-
-                paths: {},
-
-                urlArg: ""
-
-            };
+            head = document.getElementsByTagName("head")[0];
 
         return {
-
-            /**
-             * 配置模块路由
-             * @param   opt     配置项
-             */
-            config: function(opt) {
-                for(var i in opt) {
-                    configs[i] = opt[i];
-                }
-
-                var keys = getKeys(configs.paths),
-
-                    len = keys.length,
-                    
-                    current, path, base;
-
-                if(len) {
-
-                    console.log(configs);
-
-
-                    configs.base = /\/$/.test(configs.base) ? configs.base : configs.base + "/";
-
-                    base = configs.base;
-
-                    i = 0;
-                    for(; i < len; i ++) {
-                        current = keys[i];
-
-                        path = configs.paths[current];
-
-                        path = path.replace(/\.js$/, "");
-
-                        configs.paths[current] = base + path + ".js";
-                    }
-
-                }
-
-            },
 
             define: function() {
 
@@ -216,50 +166,19 @@
          * @param   moduleName  模块名
          */
         function getUrl(moduleName) {
-            var paths = configs.paths,
-                src;
-            for(var i in paths) {
-                if(i === moduleName) {
-                    src = paths[i];
-                }
-            }
-            src = src ? src : ("" + moduleName).replace(/\.js$/, "") + ".js";
-            if(configs.urlArg) {
-                src += (src.indexOf("?") > -1 ? "&" : "?") + configs.urlArg;
-            }
-            return src;
+            return ("" + moduleName).replace(/\.js$/, "") + ".js";
         }
 
         /**
          * 异步加载模块
          * @param  src    模块路径
          */
-        function loadScript(src, callback) {
-            var _script = doc.createElement("script");
+        function loadScript(src) {
+            var _script = document.createElement("script");
             _script.type = "text/javascript";
             _script.async = true;
             _script.src = src;
-            _script.onload = _script.onreadystatechange = function() {
-                if(!_script.readyState || _script.readyState === "loaded" || _script.readyState === "complete") {
-                    typeof callback === "function" && callback();
-                }
-            };
-            head.appendChild(_script);
-        }
-
-        /**
-         * 获取对象下非继承来的属性名
-         * @param  obj  被获取属性名的对象
-         */
-        function getKeys(obj) {
-            var res = [];
-            for(var i in obj) {
-                if(!obj.hasOwnProperty(i)) {
-                    continue;
-                }
-                res.push(i);
-            }
-            return res;
+            document.getElementsByTagName("head")[0].appendChild(_script);
         }
 
     })();
