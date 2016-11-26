@@ -16,11 +16,11 @@ loader.config({
 });
 
 
-loader.define(["module/dom","module/event"], function (dom, event) {
+loader.define(["dom","event"], function (dom, event) {
 
-    event.on("demo", "click", function () {
-    	console.log(111);
-        dom.html("demo", dom.html("demo") + "<br/>success!");
+    event.on("demo", "click", function (e) {
+    	console.log(e);
+        dom.html("demo", dom.html("demo") + "<br/>" + e.type + " @" + (new Date()));
     });
 
 });

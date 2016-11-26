@@ -13,6 +13,12 @@
         //  缓存已经加载好的模块
         var moduleCache = {},
 
+            //  缓存document对象
+            doc = document,
+
+            //  缓存head标签
+            head = doc.getElementsByTagName("head")[0],
+
             //  配置对象
             configs = {
                 
@@ -34,6 +40,35 @@
                 for(var i in opt) {
                     configs[i] = opt[i];
                 }
+
+                var keys = getKeys(configs.paths),
+
+                    len = keys.length,
+                    
+                    current, path, base;
+
+                if(len) {
+
+                    console.log(configs);
+
+
+                    configs.base = /\/$/.test(configs.base) ? configs.base : configs.base + "/";
+
+                    base = configs.base;
+
+                    i = 0;
+                    for(; i < len; i ++) {
+                        current = keys[i];
+
+                        path = configs.paths[current];
+
+                        path = path.replace(/\.js$/, "");
+
+                        configs.paths[current] = base + path + ".js";
+                    }
+
+                }
+
             },
 
             define: function() {
@@ -181,19 +216,50 @@
          * @param   moduleName  模块名
          */
         function getUrl(moduleName) {
-            return ("" + moduleName).replace(/\.js$/, "") + ".js";
+            var paths = configs.paths,
+                src;
+            for(var i in paths) {
+                if(i === moduleName) {
+                    src = paths[i];
+                }
+            }
+            src = src ? src : ("" + moduleName).replace(/\.js$/, "") + ".js";
+            if(configs.urlArg) {
+                src += (src.indexOf("?") > -1 ? "&" : "?") + configs.urlArg;
+            }
+            return src;
         }
 
         /**
          * 异步加载模块
          * @param  src    模块路径
          */
-        function loadScript(src) {
-            var _script = document.createElement("script");
+        function loadScript(src, callback) {
+            var _script = doc.createElement("script");
             _script.type = "text/javascript";
             _script.async = true;
             _script.src = src;
-            document.getElementsByTagName("head")[0].appendChild(_script);
+            _script.onload = _script.onreadystatechange = function() {
+                if(!_script.readyState || _script.readyState === "loaded" || _script.readyState === "complete") {
+
+                }
+            };
+            head.appendChild(_script);
+        }
+
+        /**
+         * 获取对象下非继承来的属性名
+         * @param  obj  被获取属性名的对象
+         */
+        function getKeys(obj) {
+            var res = [];
+            for(var i in obj) {
+                if(!obj.hasOwnProperty(i)) {
+                    continue;
+                }
+                res.push(i);
+            }
+            return res;
         }
 
     })();
