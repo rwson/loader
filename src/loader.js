@@ -241,7 +241,7 @@
             _script.src = src;
             _script.onload = _script.onreadystatechange = function() {
                 if(!_script.readyState || _script.readyState === "loaded" || _script.readyState === "complete") {
-
+                    typeof callback === "function" && callback();
                 }
             };
             head.appendChild(_script);
